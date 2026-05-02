@@ -1,7 +1,9 @@
+cat > requirements.txt << 'EOF'
 streamlit
 numpy
 pandas
 scikit-learn
 joblib
-tensorflow-cpu
-keras
+tensorflow
+EOF
+echo "done"
