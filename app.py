@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from tensorflow import keras
 
 st.set_page_config(
     page_title="DoorDash Delivery Predictor",
@@ -129,13 +128,12 @@ with right_col:
         ridge_model = joblib.load("ridge_model.pkl")
         ridge_scaler = joblib.load("ridge_scaler.pkl")
         feature_set = joblib.load("feature_set.pkl")
-        ann_model = keras.models.load_model("ann_model.keras")
-        ann_y_scaler = joblib.load("ann_y_scaler.pkl")
-        return ridge_model, ridge_scaler, feature_set, ann_model, ann_y_scaler
+        final_model = joblib.load("final_model.pkl")
+        return ridge_model, ridge_scaler, feature_set, final_model
 
     if st.button("🔮 Predict Delivery Duration", use_container_width=True, type="primary"):
         try:
-            ridge_model, ridge_scaler, feature_set, ann_model, ann_y_scaler = load_models()
+            ridge_model, ridge_scaler, feature_set, final_model = load_models()
 
             input_data = {col: 0 for col in feature_set}
             input_data.update({
@@ -155,12 +153,13 @@ with right_col:
             X_scaled = ridge_scaler.transform(X_input)
             prep_time_pred = ridge_model.predict(X_scaled)[0]
 
-            ann_input_raw = np.array([[prep_time_pred,
-                                       estimated_store_to_consumer_driving_duration,
-                                       estimated_order_place_duration]])
-            ann_input_scaled = (ann_input_raw - ann_y_scaler.mean_[0]) / ann_y_scaler.scale_[0]
-            y_pred_scaled = ann_model.predict(ann_input_scaled, verbose=0)
-            total_duration = ann_y_scaler.inverse_transform(y_pred_scaled.reshape(-1, 1))[0][0]
+            xgb_input = pd.DataFrame([[prep_time_pred,
+                                        estimated_store_to_consumer_driving_duration,
+                                        estimated_order_place_duration]],
+                                      columns=["prep_duration_prediction",
+                                               "estimated_store_to_consumer_driving_duration",
+                                               "estimated_order_place_duration"])
+            total_duration = final_model.predict(xgb_input)[0]
             minutes = total_duration / 60
 
             st.markdown(f"""

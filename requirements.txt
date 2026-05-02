@@ -1,9 +1,6 @@
-cat > requirements.txt << 'EOF'
 streamlit
 numpy
 pandas
 scikit-learn
 joblib
-tensorflow
-EOF
-echo "done"
+xgboost
