@@ -1,82 +1,107 @@
-# DoorDash Delivery Duration Prediction
+# 🍕 How Long Will My DoorDash Take?
 
-A machine learning project that predicts how long a DoorDash delivery will take, built end-to-end from raw data to a deployed web application.
+> *"Your order has been placed. Estimated delivery: 35 minutes."*
+> 
+> But how does DoorDash know that? And can we do better?
 
-## Problem Statement
+That's exactly what this project set out to answer.
 
-DoorDash needs to accurately estimate delivery durations to improve customer experience and dasher efficiency. Given information available at the time an order is placed (number of dashers, order size, time of day, store category, etc.), can we predict how long the delivery will take?
+---
 
-## Dataset
+## The Problem
 
-- **Source:** DoorDash historical delivery data
-- **Size:** ~197,000 orders
-- **Target variable:** `delivery_duration` (seconds from order placement to delivery)
+Every time you order food on DoorDash, the app shows you an estimated delivery time. That number has a huge impact — it sets your expectations, affects whether you even place the order, and determines how satisfied you feel when the food arrives.
 
-## Project Structure
+But predicting delivery time is harder than it sounds. It depends on:
+- How busy the dashers are right now
+- What kind of food you ordered
+- What time of day it is
+- How far the restaurant is
+- How long the store takes to prepare the food
+
+The last one — **store prep time** — is the hardest to predict. And that's where this project focuses.
+
+---
+
+## The Dataset
+
+We worked with ~197,000 real DoorDash orders, each containing information available at the moment the order was placed:
+
+- How many dashers are on shift and how many are already busy
+- Order details (items, price, category)
+- Time of order
+- Estimated driving and placement durations
+
+The goal: **predict how long the full delivery will take, in seconds.**
+
+---
+
+## The Journey
+
+### Step 1 — Understanding the Data
+
+Before building any model, we spent time really understanding what we were working with. Missing values, outliers, weird distributions — all of it needed to be addressed.
+
+One thing that stood out immediately: the maximum delivery duration was **~98 days**. Clearly bad data. These outliers were carefully handled before any modelling began.
+
+### Step 2 — Creating Meaningful Features
+
+Raw data rarely tells the full story. We engineered features that better capture the real signals:
+
+- **Dasher pressure** — if 95% of dashers are busy, deliveries will take longer. So we created `busy_dasher_ratio` and `orders_per_dasher`
+- **Time of day** — rush hour (lunch and dinner) means more orders and longer waits. We flagged these periods and also used cyclical encoding (sin/cos) so the model understands that 11pm and midnight are close in time
+- **Order complexity** — average item price, price range, and subtotal as signals for order size and complexity
+
+### Step 3 — Cleaning Up Redundant Features
+
+More features isn't always better. We checked for features that were essentially saying the same thing twice using:
+
+- **Correlation analysis** — removed pairs with correlation > 0.8
+- **VIF (Variance Inflation Factor)** — removed features causing multicollinearity
+- **Gini Importance** — let a Random Forest tell us which features actually matter for prediction
+
+This narrowed us down to the **top 40 most informative features**.
+
+### Step 4 — A Smarter Way to Frame the Problem
+
+Here's where things got interesting.
+
+Instead of predicting the total delivery duration directly, we realised something: DoorDash already has good estimates for driving time and order placement time. The only truly unknown piece is **how long the store takes to prepare the food**.
+
+So we split the problem:
 
 ```
-├── fulleda.ipynb       # Full EDA, feature engineering, and model training
-├── app.py              # Streamlit web application
-├── requirements.txt    # Python dependencies
-├── ridge_model.pkl     # Trained Ridge regression model (prep time predictor)
-├── ridge_scaler.pkl    # StandardScaler for Ridge model features
-├── feature_set.pkl     # Selected features list
-└── final_model.pkl     # XGBoost final model (total duration predictor)
+Total Duration = Store Prep Time + Driving Time + Order Placement Time
+                      ↑
+               This is what we predict
 ```
 
-## Approach
+This is like predicting one ingredient of a recipe instead of guessing the whole dish. Much easier and more accurate.
 
-The problem was broken into two stages rather than predicting total delivery duration directly:
+### Step 5 — Building the Models
 
-```
-Total Delivery Duration = Prep Time + Driving Time + Order Placement Time
-```
+We trained a **Ridge Regression** model to predict store prep time, then fed that prediction (along with the known driving and placement estimates) into an **XGBoost model** to get the final delivery duration.
 
-Since driving time and order placement time are already estimated by DoorDash, the only unknown is **store prep time**. So:
+We tested 6 different models along the way:
 
-1. **Stage 1 — Ridge Regression:** Predicts store prep time from order features
-2. **Stage 2 — XGBoost:** Takes predicted prep time + known estimates → predicts final delivery duration
-
-## Feature Engineering
-
-| Feature | Description |
+| Model | RMSE |
 |---|---|
-| `busy_dasher_ratio` | total_busy / total_onshift dashers |
-| `orders_per_dasher` | Outstanding orders per available dasher |
-| `free_dashers` | Absolute idle dasher count |
-| `avg_item_price` | subtotal / total_items |
-| `hour_sin / hour_cos` | Cyclical encoding of order hour |
-| `day_sin / day_cos` | Cyclical encoding of day of week |
-| `is_rush_hour` | 1 if lunch (11–1pm) or dinner (5–8pm) |
-| `is_weekend` | 1 if Saturday or Sunday |
-| `non_prep_duration` | Sum of estimated driving + order placement |
+| **DecisionTree** | **1,044 sec (~17 min)** |
+| MLP Neural Network | 1,048 sec |
+| LGBM | 1,053 sec |
+| Linear / Ridge | 1,054 sec |
+| XGBoost | 1,065 sec |
+| Random Forest | 1,215 sec |
 
-One-hot encoding was applied to: `market_id`, `order_protocol`, `store_primary_category`
+### Step 6 — Bringing It to Life
 
-## Feature Selection
+The final model was deployed as an interactive web app where you can input order details and get a predicted delivery time in real time.
 
-Three methods were used to select the most important features:
+---
 
-1. **Correlation analysis** — removed highly correlated feature pairs (threshold > 0.8)
-2. **VIF (Variance Inflation Factor)** — removed features with VIF > 20 to reduce multicollinearity
-3. **Gini Importance (Random Forest)** — selected top 40 most predictive features
+## Try It Yourself
 
-## Model Results
-
-All models trained on the final 3-feature input (predicted prep time + 2 known estimates):
-
-| Model | RMSE (seconds) | RMSE (minutes) |
-|---|---|---|
-| **DecisionTree** | **1,044** | **~17.4 min** |
-| MLP | 1,048 | ~17.5 min |
-| LGBM | 1,053 | ~17.6 min |
-| LinearReg / Ridge | 1,054 | ~17.6 min |
-| XGBoost | 1,065 | ~17.8 min |
-| RandomForest | 1,215 | ~20.3 min |
-
-## Web Application
-
-An interactive Streamlit dashboard was built where users can input order details and get a real-time delivery duration prediction.
+**Live demo:** [Add your Streamlit link here]
 
 **Run locally:**
 ```bash
@@ -84,10 +109,25 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+---
+
+## What's Inside
+
+```
+├── fulleda.ipynb       # The full story — EDA, features, models
+├── app.py              # Streamlit web application
+├── requirements.txt    # Dependencies
+├── ridge_model.pkl     # Stage 1: prep time predictor
+├── final_model.pkl     # Stage 2: total duration predictor
+└── feature_set.pkl     # Selected features
+```
+
+---
+
 ## Tech Stack
 
-- **Python** — pandas, numpy, scikit-learn
-- **Models** — Ridge Regression, XGBoost, LightGBM, Random Forest, ANN
-- **Feature selection** — VIF (statsmodels), Gini importance (sklearn)
-- **Web app** — Streamlit
-- **Deployment** — Streamlit Cloud
+`Python` · `pandas` · `scikit-learn` · `XGBoost` · `LightGBM` · `statsmodels` · `Streamlit`
+
+---
+
+*Built as an end-to-end machine learning project — from raw data exploration to deployed web application.*
