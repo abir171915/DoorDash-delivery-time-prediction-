@@ -10,16 +10,17 @@ That's exactly what this project set out to answer.
 
 ## The Problem
 
-Every time you order food on DoorDash, the app shows you an estimated delivery time. That number has a huge impact — it sets your expectations, affects whether you even place the order, and determines how satisfied you feel when the food arrives.
+Every time you order food on DoorDash, the app shows you an estimated delivery time. That number has a huge impact as it sets your expectations and determines how satisfied you feel when the food arrives.
 
-But predicting delivery time is harder than it sounds. It depends on:
+But predicting delivery time is harder than it sounds because it depends on:
 - How busy the dashers are right now
 - What kind of food you ordered
 - What time of day it is
 - How far the restaurant is
 - How long the store takes to prepare the food
+- And to be honest so many factors
 
-The last one — **store prep time** — is the hardest to predict. And that's where this project focuses.
+The last one, **store prep time**  is the hardest to predict. And that's where this project focuses.
 
 ---
 
@@ -40,7 +41,7 @@ The goal: **predict how long the full delivery will take, in seconds.**
 
 ### Step 1 — Understanding the Data
 
-Before building any model, we spent time really understanding what we were working with. Missing values, outliers, weird distributions — all of it needed to be addressed.
+Before building any model, we spent time really understanding what we are working with. Missing values, outliers, weird distributions all of it needed to be addressed.
 
 One thing that stood out immediately: the maximum delivery duration was **~98 days**. Clearly bad data. These outliers were carefully handled before any modelling began.
 
@@ -48,9 +49,9 @@ One thing that stood out immediately: the maximum delivery duration was **~98 da
 
 Raw data rarely tells the full story. We engineered features that better capture the real signals:
 
-- **Dasher pressure** — if 95% of dashers are busy, deliveries will take longer. So we created `busy_dasher_ratio` and `orders_per_dasher`
-- **Time of day** — rush hour (lunch and dinner) means more orders and longer waits. We flagged these periods and also used cyclical encoding (sin/cos) so the model understands that 11pm and midnight are close in time
-- **Order complexity** — average item price, price range, and subtotal as signals for order size and complexity
+- **Dasher pressure** : if 95% of dashers are busy, deliveries will take longer. So we created `busy_dasher_ratio` and `orders_per_dasher`
+- **Time of day** : rush hour (lunch and dinner) means more orders and longer waits. We flagged these periods and also used cyclical encoding (sin/cos) so the model understands that 11pm and midnight are close in time
+- **Order complexity** : average item price, price range and subtotal as signals for order size and complexity
 
 ### Step 3 — Cleaning Up Redundant Features
 
@@ -101,7 +102,7 @@ The final model was deployed as an interactive web app where you can input order
 
 ## Try It Yourself
 
-**Live demo:** [Add your Streamlit link here]
+**Live demo:** [https://sx8mnutq4zmulkozjqffct.streamlit.app/]
 
 **Run locally:**
 ```bash
